@@ -513,7 +513,7 @@ function theme_topspin_offer_buy_button($offer) {
   
   $output .= '<div class="topspin-name">'. check_plain($offer->name) .'</div>';
   $output .= '<div class="topspin-price">$'. $offer->price .' '. $offer->currency .'</div>';
-  $output .= '<div class="topspin-embed">'. $offer->html_embed_code .'</div>';
+  $output .= '<div class="topspin-embed">'. $offer->embed_code .'</div>';
   
   return $output;
 }
@@ -527,7 +527,7 @@ function theme_topspin_offer_buy_button($offer) {
  */
 function theme_topspin_offer_email_for_media($offer) {
   $output = '<div class="topspin-name">'. check_plain($offer->name) .'</div>';
-  $output .= '<div class="topspin-embed">'. $offer->html_embed_code .'</div>';
+  $output .= '<div class="topspin-embed">'. $offer->embed_code .'</div>';
   
   return $output;
 }
@@ -541,7 +541,7 @@ function theme_topspin_offer_email_for_media($offer) {
  */
 function theme_topspin_offer_fb_for_media($offer) {
   $output = '<div class="topspin-name">'. check_plain($offer->name) .'</div>';
-  $output .= '<div class="topspin-embed">'. $offer->html_embed_code .'</div>';
+  $output .= '<div class="topspin-embed">'. $offer->embed_code .'</div>';
   
   return $output;
 }
@@ -555,7 +555,7 @@ function theme_topspin_offer_fb_for_media($offer) {
  */
 function theme_topspin_offer_bundle_widget($offer) {
   $output = '<div class="topspin-name">'. check_plain($offer->name) .'</div>';
-  $output .= '<div class="topspin-embed">'. $offer->html_embed_code .'</div>';
+  $output .= '<div class="topspin-embed">'. $offer->embed_code .'</div>';
   
   return $output;
 }
@@ -569,7 +569,7 @@ function theme_topspin_offer_bundle_widget($offer) {
  */
 function theme_topspin_offer_single_track_player_widget($offer) {
   $output = '<div class="topspin-name">'. check_plain($offer->name) .'</div>';
-  $output .= '<div class="topspin-embed">'. $offer->html_embed_code .'</div>';
+  $output .= '<div class="topspin-embed">'. $offer->embed_code .'</div>';
   
   return $output;
 }
@@ -589,7 +589,7 @@ function theme_topspin_offer_block($delta) {
   $offer = topspin_request($saved_offer->url);
   
   if (is_object($offer)) {
-    $output .= $offer->html_embed_code;
+    $output .= $offer->embed_code;
   }
   
   return $output;
