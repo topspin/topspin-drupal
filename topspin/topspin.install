@@ -1,0 +1,45 @@
+<?php
+// $Id: $
+
+/**
+ *
+ *  @file
+ *  Installation file.
+ *
+ */
+
+
+/**
+ *  Implementation of hook_requirements().
+ */
+function topspin_requirements($phase) {
+  $requirements = array();
+  
+  // Ensure translations don't break at install time.
+  $t = get_t();
+
+  // Test PHP version.
+  $php = '5.2.0';
+  if (version_compare(phpversion(), $php) < 0) {
+    $requirements['topspin_php']['title'] = $t('PHP');
+    $requirements['topspin_php']['description'] = $t('Your PHP installation is too old. The Topspin module requires at least PHP %version.', array('%version' => $php));
+    $requirements['topspin_php']['severity'] = REQUIREMENT_ERROR;
+  }
+  
+  // Make sure cURL is installed.
+  if (!function_exists('curl_init')) {
+    $requirements['curl']['title'] = $t('cURL');
+    $requirements['curl']['description'] = $t('The !cURL library is required in order to communicate with the Topspin API.', array('!cURL' => l('cURL', 'http://php.net/manual/en/book.curl.php')));
+    $requirements['curl']['severity'] = REQUIREMENT_ERROR;
+  }
+  
+  // Make sure jSON is installed.
+  if (!function_exists('json_encode')) {
+    $requirements['json']['title'] = $t('jSON');
+    $requirements['json']['description'] = $t('The !jSON library is required in order to communicate with the Topspin API.', array('!jSON' => l('jSON', 'http://php.net/manual/en/book.json.php')));
+    $requirements['json']['severity'] = REQUIREMENT_ERROR;
+  }
+
+  return $requirements;
+}
+

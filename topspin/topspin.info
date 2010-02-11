@@ -1,0 +1,5 @@
+; $Id: $
+name = "Topspin Media"
+description = "Integration with a Topspin Media account. API for communication with their API, a store view to display store products from Topspin and widgets as blocks."
+core = 6.x
+package = "Third Party"
