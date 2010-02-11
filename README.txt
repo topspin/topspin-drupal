@@ -36,5 +36,6 @@ FEATURES
 AUTHOR/MAINTAINER
 =================
 
-* Steve McKenzie
+* 80Elements Entertainment (http://80elements.com)
+* Topspin Media (http://topspinmedia.com)
 
