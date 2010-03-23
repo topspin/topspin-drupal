@@ -1,5 +1,5 @@
 README.txt
-==========
+====
 
 A module that integrates with Topspin's (http://topspinmedia.com) REST API.
  
@@ -7,13 +7,13 @@ Topspin API Documentation: http://docs.topspin.net
 
 
 PROJECT PAGE
-============
+===
 
 http://drupal.org/project/topspin
  
  
 REQUIREMENTS
-============
+===
 
 * PHP 5.2.x
 * jSON enabled for PHP
@@ -22,7 +22,7 @@ REQUIREMENTS
 
 
 FEATURES
-========
+===
 
 * Connection API for making requests from the REST API.
   topspin_request($method, $parameters);
@@ -34,7 +34,7 @@ FEATURES
 
 
 AUTHOR/MAINTAINER
-=================
+===
 
 * 80Elements Entertainment (http://80elements.com)
 * Topspin Media (http://topspinmedia.com)
