@@ -1,5 +1,5 @@
-README.txt
-====
+Topspin Drupal Module
+===
 
 A module that integrates with Topspin's (http://topspinmedia.com) REST API.
  
