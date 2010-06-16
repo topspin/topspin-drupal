@@ -101,7 +101,7 @@ function topspin_cck_import_offers($override = NULL) {
     $offers->offers = array_merge($offers->offers, $this_offer->offers);
   }
   
-  // Loop through orders and add to Bluecollar, if we haven't already.
+  // Loop through orders and add, if we haven't already.
   foreach ($offers->offers as $offer_index => $offer) {
     $offer_id = (int) $offer->id;
     $existing_nid = db_result(db_query("SELECT nid FROM {topspin_offer} WHERE oid = %d", array($offer_id)));
