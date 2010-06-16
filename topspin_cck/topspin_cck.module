@@ -77,7 +77,6 @@ function topspin_cck_import_offers($override = NULL) {
   if ($artist_id) {
     $params['artist_id'] = $artist_id;
   }
-  $params['per_page'] = 2;
   
   $offers = topspin_request('offers', $params);
   
