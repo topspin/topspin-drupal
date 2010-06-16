@@ -35,7 +35,7 @@ function topspin_menu() {
   
   $items['admin/settings/topspin'] = array(
     'title' => 'TopSpin',
-    'description' => 'Administer the TopSpin Media configuration.',
+    'description' => t('Administer the TopSpin Media configuration.'),
     'page callback' => 'drupal_get_form',
     'page arguments' => array('topspin_settings_form'),
     'access arguments' => array('administer topspin'),
@@ -43,12 +43,12 @@ function topspin_menu() {
   );
   
   // Only include a store page if a path is configured.
-  $store_path = variable_get('topspin_store_path', 'store');
+  $store_path = variable_get('topspin_store_path', '');
   if ($store_path != '') {
     $items[$store_path] = array(
-    'title' => variable_get('topspin_store_title', 'Store'),
-    'page callback' => 'topspin_store_view',
-    'access arguments' => array('access topspin store'),
+      'title' => variable_get('topspin_store_title', 'Store'),
+      'page callback' => 'topspin_store_view',
+      'access arguments' => array('access topspin store'),
     );
   }
   
@@ -89,6 +89,22 @@ function topspin_theme($existing, $type, $theme, $path) {
 }
 
 
+function topspin_init() {
+  $topspin_settings = array(
+    'topspin' => array(
+      'showEmptyCart' => variable_get('topspin_show_empty_cart', 1),
+    ),
+  );
+  drupal_add_js($topspin_settings, 'setting');
+  drupal_add_js('Drupal.behaviors.topspin = function(context) {
+    if (Drupal.settings.topspin.showEmptyCart && !("admin" in Drupal) && TSCart) {
+      TSCart.showWhenEmpty = true;
+    }
+  };
+  ', 'inline');
+}
+
+
 /**
  *  Implementation of hook_block().
  */
@@ -114,24 +130,24 @@ function topspin_block($op = 'list', $delta = 0, $edit = array()) {
         case 'store':
           $form['grid_size'] = array(
             '#type' => 'select',
-            '#title' => 'Total Per Row',
+            '#title' => t('Total Per Row'),
             '#options' => drupal_map_assoc(array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)),
-            '#description' => 'The total number of offers to display per row.',
+            '#description' => t('The total number of offers to display per row.'),
             '#default_value' => variable_get('topspin_store_block_grid_size', variable_get('topspin_store_grid_size', 4)),
             '#required' => TRUE,
           );
           $form['page_limit'] = array(
             '#type' => 'select',
-            '#title' => 'Total Per Page',
+            '#title' => t('Total Per Page'),
             '#options' => drupal_map_assoc(array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25)),
-            '#description' => 'The total number of offers to display per page.',
+            '#description' => t('The total number of offers to display per page.'),
             '#default_value' => variable_get('topspin_store_block_page_limit', variable_get('topspin_store_page_limit', 4)),
             '#required' => TRUE,
           );
           $form['product_type'] = array(
             '#type' => 'select',
-            '#title' => 'Product Type',
-            '#description' => 'Which product type to display.',
+            '#title' => t('Product Type'),
+            '#description' => t('Which product type to display.'),
             '#options' => array(
               '' => t('All'),
               'image' => t('Image'),
@@ -146,8 +162,8 @@ function topspin_block($op = 'list', $delta = 0, $edit = array()) {
           );
           $form['sort_column'] = array(
             '#type' => 'select',
-            '#title' => 'Sorting Field',
-            '#description' => 'Which field to sort the offers by.',
+            '#title' => t('Sorting Field'),
+            '#description' => t('Which field to sort the offers by.'),
             '#options' => array(
               'created_at' => t('Created at'),
               'name' => t('Name'),
@@ -158,8 +174,8 @@ function topspin_block($op = 'list', $delta = 0, $edit = array()) {
           );
           $form['sort_direction'] = array(
             '#type' => 'select',
-            '#title' => 'Sort Direction',
-            '#description' => 'Which direction to sort the offers.',
+            '#title' => t('Sort Direction'),
+            '#description' => t('Which direction to sort the offers.'),
             '#options' => array(
               'asc' => t('Ascending'),
               'desc' => t('Descending'),
@@ -217,8 +233,8 @@ function topspin_block($op = 'list', $delta = 0, $edit = array()) {
  *  @return array
  *  - Enabled offers.
  */
-function topspin_enabled_offer_blocks($offers = array()) {
-  if (!empty($offers)) {
+function topspin_enabled_offer_blocks($offers = NULL) {
+  if (isset($offers)) {
     // Don't need to save all offer data - pick out important stuff.
     $offers_trimmed = array();
     foreach ($offers as $index => $offer) {
@@ -231,22 +247,6 @@ function topspin_enabled_offer_blocks($offers = array()) {
   } else {
     return variable_get('topspin_enabled_offer_blocks', array());
   }
-}
-
-
-/**
- *  Helper function to retrieve an offer_id from an API URL.
- *
- *  @param object
- *  - Offer object.
- *
- *  @return int
- *  - Offer id.
- */
-function topspin_get_offer_id($offer) {
-  // For now, the only way to get the offer id is to parse it out of $offer->url
-  $parts = explode('/', $offer->url);
-  return $parts[count($parts)-1];
 }
 
 
@@ -264,7 +264,7 @@ function topspin_get_offer_id($offer) {
  */
 function topspin_get_offer_by_id($id, $offers) {
   foreach ($offers as $index => $offer) {
-    if ($id == topspin_get_offer_id($offer)) {
+    if ($id == $offer->id) {
       return $offer;
     }
   }
@@ -348,7 +348,6 @@ function topspin_request($method = 'offers', $parameters = array()) {
 
   // Start the request.
   $curl = curl_init($request);
-  
   curl_setopt($curl, CURLOPT_HEADER, 0);
   curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
   curl_setopt($curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
@@ -505,13 +504,14 @@ function theme_topspin_offer($offer) {
  */
 function theme_topspin_offer_buy_button($offer) {
   // Grab a thumbnail view of the first item if it is available and display it.
-  if (!empty($offer->campaign->product->media)) {
-    $url = $offer->campaign->product->media[0]->images[0]->small_url;
-    $alt = $offer->campaign->product->media[0]->name;
+  if (!empty($offer->campaign->product->cover_art_image)) {
+    $url = $offer->campaign->product->cover_art_image->medium_url;
+    $alt = $offer->campaign->product->cover_art_image->name;
     $output .= '<div class="topspin-thumbnail"><img src="'. $url .'" alt="'. $alt .'" title="'. $alt .'" /></div>';
   }
   
   $output .= '<div class="topspin-name">'. check_plain($offer->name) .'</div>';
+  //$output .= '<div class="topspin-description">'. check_plain($offer->description) .'</div>';
   $output .= '<div class="topspin-price">$'. $offer->price .' '. $offer->currency .'</div>';
   $output .= '<div class="topspin-embed">'. $offer->embed_code .'</div>';
   

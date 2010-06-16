@@ -1,0 +1,6 @@
+; $Id: $
+name = "Topspin Media CCK"
+description = "Imports public Topspin offers and maps data to nodes."
+core = 6.x
+package = "TopSpin"
+dependencies[] = topspin

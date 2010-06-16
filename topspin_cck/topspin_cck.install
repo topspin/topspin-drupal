@@ -1,0 +1,72 @@
+<?php
+
+/**
+ *
+ *  @file
+ *  Installation file.
+ *
+ */
+
+
+/**
+ *  Implementation of hook_install().
+ */
+function topspin_cck_install() {
+  drupal_install_schema('topspin_cck');
+}
+
+
+/**
+ *  Implementation of hook_uninstall().
+ */
+function topspin_cck_uninstall() {
+  drupal_uninstall_schema('topspin_cck');
+}
+
+
+/**
+ *  Implementation of hook_schema().
+ */
+function topspin_cck_schema() {
+  $schema['topspin_offer'] = array(
+    'description' => 'The base table for topspin_cck offers.',
+    'fields' => array(
+      'oid' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'nid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'data' => array(
+        'type' => 'text',
+        'not null' => FALSE,
+        'size' => 'big',
+      ),
+      'changed' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'created' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'indexes' => array(
+      'changed' => array('changed'),
+    ),
+    'unique keys' => array(
+      'oid' => array('oid')
+    ),
+    'primary key' => array('oid'),
+  );
+  
+  return $schema;
+}
+

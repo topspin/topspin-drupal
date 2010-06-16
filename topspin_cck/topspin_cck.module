@@ -1,0 +1,220 @@
+<?php
+// $Id: $
+
+/**
+ *
+ *  @file
+ *  Product import functionality for Topspin CCK module.
+ *
+ */
+
+
+include_once('topspin_cck.admin.inc');
+
+
+/**
+ *  Implementation of hook_perm().
+ */
+function topspin_cck_perm() {
+  return array(
+    'manage topspin content'
+  );
+}
+
+
+/**
+ *  Implementation of hook_menu().
+ */
+function topspin_cck_menu() {
+  $items = array();
+  
+  $items['admin/content/topspin'] = array(
+    'title' => 'TopSpin content',
+    'description' => 'Manage imported TopSpin content.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('topspin_cck_content_form'),
+    'access arguments' => array('manage topspin content'),
+  );
+  
+  return $items;
+}
+
+
+/**
+ * Implementation of hook_cron().
+ */
+function topspin_cck_cron() {
+  // Import products if configuration allows.
+  if (variable_get('topspin_cck_import_on_cron', 1)) {
+    topspin_cck_import_offers();
+  }
+}
+
+
+/**
+ * Implementation of hook_nodeapi().
+ */
+function topspin_cck_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  switch ($op) {
+    case 'delete':
+      if ($node->type == 'topspin_product') {
+        // When a TopSpin product node is removed, get rid of entry in {topspin_offer}.
+        db_query("DELETE FROM {topspin_offer} WHERE nid = %d", array($node->nid));
+      }
+      break;
+  }
+}
+
+
+/**
+ * Import Topspin offers and map to nodes.
+ */
+function topspin_cck_import_offers($override = NULL) {
+  
+  // Get offers.
+  $params = array();
+  $artist_id = variable_get('topspin_api_artist_id', NULL);
+  if ($artist_id) {
+    $params['artist_id'] = $artist_id;
+  }
+  $params['per_page'] = 2;
+  
+  $offers = topspin_request('offers', $params);
+  
+  if (!isset($offers->offers)) {
+    if (is_array($offers)) {
+      $fail = 'Retrieval error: '. $offers['error'];
+    } else {
+      $fail = 'Unable to retrieve Offers';
+    }
+    drupal_set_message($fail);
+    return;
+  }
+  
+  $create_count = 0;
+  $update_count = 0;
+  
+  $curpage = $offers->current_page;
+  while ($curpage < $offers->total_pages) {
+    $curpage++;
+    $params['page'] = $curpage;
+    $this_offer = topspin_request('offers', $params);
+    $offers->offers = array_merge($offers->offers, $this_offer->offers);
+  }
+  
+  // Loop through orders and add to Bluecollar, if we haven't already.
+  foreach ($offers->offers as $offer_index => $offer) {
+    $offer_id = (int) $offer->id;
+    $existing_nid = db_result(db_query("SELECT nid FROM {topspin_offer} WHERE oid = %d", array($offer_id)));
+    if (!$existing_nid || $override) {
+      // New Offer, create a new node or update existing.
+      $updating = 0;
+      
+      if ($override && $existing_nid) {
+        $updating = 1;
+        $update_count++;
+      } else {
+        $create_count++;
+      }
+      
+      // Node basics.
+      if ($updating) {
+        $node = node_load($existing_nid);
+      } else {
+        $node = (object) array(
+          'title' => $offer->name,
+          'type' => 'topspin_product',
+          'uid' => $GLOBALS['user']->uid,
+          'status' => (int) !variable_get('topspin_cck_unpublish_on_import', 1),
+        );
+      }
+      
+      // Embed Code field.
+      $node->field_topspin_buy_embed[0]['value'] = $offer->embed_code;
+      $node->field_topspin_buy_embed[0]['format'] = 2;
+      
+      // Price field.
+      $node->field_topspin_price[0]['value'] = '$'. $offer->price;
+      
+      // Body field.
+      $node->body = $offer->campaign->product->description;
+      
+      // Image field.
+      if ($offer->poster_image) {
+        $file = NULL;
+        if ($updating) {
+          // Check if a file obj already exists - if so, just update existing.
+          if (isset($node->field_topspin_image[0]['fid'])) {
+            $file = $node->field_topspin_image[0];
+          }
+        }
+        $file = topspin_cck_process_image($offer->poster_image, $file);
+        $node->field_topspin_image[0] = (array) $file;
+      }
+      
+      // Associate offer_id.
+      $node->topspin_offer_id = $offer->id;
+      
+      // Save it!
+      node_save($node);
+      
+      // Add Order to {orders_topspin}.
+      if ($updating) {
+        db_query("UPDATE {topspin_offer} SET data = '%s', changed = %d WHERE nid = %d", array(serialize($offer), time(), $node->nid));
+      } else {
+        db_query("INSERT INTO {topspin_offer} (oid, nid, data, changed, created) VALUES(%d, %d, '%s', %d, %d)", array($offer_id, $node->nid, serialize($offer), time(), time()));
+      }
+      
+    }
+  }
+  
+  $import_message = '';
+  if ($create_count) {
+    $import_message .= $create_count .' TopSpin product nodes created.';
+  }
+  if ($update_count) {
+    $import_message .= $update_count .' TopSpin product nodes updated.';
+  }
+  if (empty($import_message)) {
+    $import_message = 'No TopSpin content to import.';
+  }
+  drupal_set_message($import_message);
+  
+}
+
+
+/**
+ * Download a remote image, move to /files dir, and save {files} entry.
+ *
+ * @param string $remote_path
+ * @return object $file
+ */
+function topspin_cck_process_image($remote_path, $existing_file = NULL) {
+  // Save remote data to files dir.
+  $filepath = file_save_data(file_get_contents($remote_path), file_directory_path(), FILE_EXISTS_REPLACE);
+  // Parse url so we can remove query string.
+  $path_parts = parse_url($remote_path);
+  $nice_name = basename($path_parts['path']);
+  // Fill basic info.
+  $file = (object) array(
+    'filepath' => $filepath,
+    'uid' => $GLOBALS['user']->uid,
+    'filesize' => filesize($filepath),
+    'filemime' =>  file_get_mimetype($nice_name),
+    'status' => 1,
+    'timestamp' => time(),
+    'list' => 1,
+  );
+  // Rename using nice name.
+  file_move($file, file_directory_path() .'/'. $nice_name, FILE_EXISTS_REPLACE);
+  // Save file to {files} table.
+  $update_fields = array();
+  if ($existing_file) {
+    $file->fid = $existing_file['fid'];
+    $update_fields[] = 'fid';
+  }
+  $ret = drupal_write_record('files', $file, $update_fields);
+  
+  return $file;
+}
+

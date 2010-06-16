@@ -16,25 +16,46 @@
  * - Settings form array.
  */
 function topspin_settings_form() {
+  
+  // General.
+  $form['general'] = array('#type' => 'fieldset', '#weight' => 0, '#title' => t('General'), '#description' => '', '#collapsible' => TRUE, '#collapsed' => FALSE);
+  $form['general']['topspin_show_empty_cart'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Show empty cart?'),
+    '#description' => t("Should the cart UI appear when it's empty?"),
+    '#options' => array(
+      0 => t('No'),
+      1 => t('Yes'),
+    ),
+    '#default_value' => variable_get('topspin_show_empty_cart', 1),
+  );
+  
   // Account.
-  $form['account'] = array('#type' => 'fieldset', '#title' => 'Account', '#description' => 'Your account information on Topspin.', '#collapsible' => TRUE);
+  $form['account'] = array('#type' => 'fieldset', '#weight' => 4, '#title' => t('Account'), '#description' => t('Your account information on Topspin.'), '#collapsible' => TRUE, '#collapsed' => TRUE);
   $form['account']['topspin_api_key'] = array(
     '#type' => 'textfield',
-    '#title' => 'Key',
-    '#description' => 'The API key you receive from Topspin to use their API with.',
+    '#title' => t('Key'),
+    '#description' => t('The API key you receive from Topspin to use their API with.'),
     '#required' => TRUE,
     '#default_value' => variable_get('topspin_api_key', ''),
   );
   $form['account']['topspin_api_user'] = array(
     '#type' => 'textfield',
-    '#title' => 'User',
-    '#description' => 'The user to use to access the API (usually your email address).',
+    '#title' => t('User'),
+    '#description' => t('The user to use to access the API (usually your email address).'),
     '#required' => TRUE,
     '#default_value' => variable_get('topspin_api_user', ''),
   );
+  $form['account']['topspin_api_artist_id'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Offers Artist ID'),
+    '#description' => t("The Artist ID of the artist who's Offers you want to import."),
+    '#required' => FALSE,
+    '#default_value' => variable_get('topspin_api_artist_id', ''),
+  );
   
   // Blocks.
-  $form['block'] = array('#type' => 'fieldset', '#title' => 'Blocks', '#description' => 'Choose which offers you would like to be usable as a block.', '#collapsible' => TRUE);
+  $form['block'] = array('#type' => 'fieldset', '#weight' => 2, '#title' => t('Blocks'), '#description' => t('Choose which offers you would like to be usable as a block.'), '#collapsible' => TRUE, '#collapsed' => TRUE);
   
   // Create an array by artists.
   $result = topspin_request('offers');
@@ -56,50 +77,55 @@ function topspin_settings_form() {
         $form['block'][$artist_id] = array('#type' => 'fieldset', '#title' => check_plain($offer->artist_name), '#collapsible' => TRUE, '#collapsed' => TRUE);
       }
       // Add all "block enable" checkboxes.
-      $form['block'][$artist_id]['topspin_enabled_offer_block_'. topspin_get_offer_id($offer)] = array(
+      $form['block'][$artist_id]['topspin_enabled_offer_block_'. $offer->id] = array(
         '#type' => 'checkbox',
         '#title' => check_plain($offer->name),
-        '#default_value' => variable_get('topspin_enabled_offer_block_'. topspin_get_offer_id($offer), 0),
+        '#default_value' => variable_get('topspin_enabled_offer_block_'. $offer->id, 0),
       );
     }
   }
   
-  // Store.
-  $form['store'] = array('#type' => 'fieldset', '#title' => 'Store Settings', '#description' => 'Customizable settings for the default store view.', '#collapsible' => TRUE);
-  $form['store']['topspin_store_path'] = array(
+  // Static store.
+  $form['static_store'] = array('#type' => 'fieldset', '#weight' => 3, '#title' => t('Static Store'), '#description' => '', '#collapsible' => TRUE, '#collapsed' => TRUE);
+  if ($store_path = variable_get('topspin_store_path', '')) {
+    $store_path = t('Currently set to: ') . url($store_path, array('absolute' => TRUE));
+  } else {
+    $store_path = t('Currently disabled');
+  }
+  $form['static_store']['topspin_store_path'] = array(
     '#type' => 'textfield',
-    '#title' => 'Path',
-    '#description' => t('The internal Drupal path to the store page on your site. Currently set to: !site. To remove the page from the system simply remove this value. No trailing or starting slash (/).',
-                        array('!site' => '<strong>'. url(variable_get('topspin_store_path', 'store'), array('absolute' => TRUE)) .'</strong>')),
+    '#title' => t('Path'),
+    '#description' => t('The internal Drupal path to the store page on your site. !store-path. To remove the page from the system simply remove this value. No trailing or starting slash (/).',
+                        array('!store-path' => '<strong>'. $store_path .'</strong>')),
     '#default_value' => variable_get('topspin_store_path', 'store'),
   );
-  $form['store']['topspin_store_title'] = array(
+  $form['static_store']['topspin_store_title'] = array(
     '#type' => 'textfield',
-    '#title' => 'Title',
-    '#description' => 'The title to use for the page.',
+    '#title' => t('Title'),
+    '#description' => t('The title to use for the page.'),
     '#default_value' => variable_get('topspin_store_title', 'Store'),
     '#required' => TRUE,
   );
-  $form['store']['topspin_store_grid_size'] = array(
+  $form['static_store']['topspin_store_grid_size'] = array(
     '#type' => 'select',
-    '#title' => 'Total Per Row',
+    '#title' => t('Total Per Row'),
     '#options' => drupal_map_assoc(array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)),
-    '#description' => 'The total number of offers to display per row.',
+    '#description' => t('The total number of offers to display per row.'),
     '#default_value' => variable_get('topspin_store_grid_size', 4),
     '#required' => TRUE,
   );
-  $form['store']['topspin_store_page_limit'] = array(
+  $form['static_store']['topspin_store_page_limit'] = array(
     '#type' => 'select',
-    '#title' => 'Total Per Page',
+    '#title' => t('Total Per Page'),
     '#options' => drupal_map_assoc(array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25)),
-    '#description' => 'The total number of offers to display per page.',
+    '#description' => t('The total number of offers to display per page.'),
     '#default_value' => variable_get('topspin_store_page_limit', 4),
     '#required' => TRUE,
   );
-  $form['store']['topspin_store_filter_product_type'] = array(
+  $form['static_store']['topspin_store_filter_product_type'] = array(
     '#type' => 'select',
-    '#title' => 'Product Type',
-    '#description' => 'Which product type to display.',
+    '#title' => t('Product Type'),
+    '#description' => t('Which product type to display.'),
     '#options' => array(
       '' => t('All'),
       'image' => t('Image'),
@@ -112,10 +138,10 @@ function topspin_settings_form() {
     ),
     '#default_value' => variable_get('topspin_store_filter_product_type', ''),
   );
-  $form['store']['topspin_store_sort_column'] = array(
+  $form['static_store']['topspin_store_sort_column'] = array(
     '#type' => 'select',
-    '#title' => 'Sorting Field',
-    '#description' => 'Which field to sort the offers by.',
+    '#title' => t('Sorting Field'),
+    '#description' => t('Which field to sort the offers by.'),
     '#options' => array(
       'created_at' => t('Created at'),
       'name' => t('Name'),
@@ -124,10 +150,10 @@ function topspin_settings_form() {
     ),
     '#default_value' => variable_get('topspin_store_sort_column', 'created_at'),
   );
-  $form['store']['topspin_store_sort_direction'] = array(
+  $form['static_store']['topspin_store_sort_direction'] = array(
     '#type' => 'select',
-    '#title' => 'Sort Direction',
-    '#description' => 'Which direction to sort the offers.',
+    '#title' => t('Sort Direction'),
+    '#description' => t('Which direction to sort the offers.'),
     '#options' => array(
       'asc' => t('Ascending'),
       'desc' => t('Descending'),
@@ -136,17 +162,17 @@ function topspin_settings_form() {
   );
   
   // Advanced.
-  $form['advanced'] = array('#type' => 'fieldset', '#title' => 'Advanced', '#description' => 'Only for experts.', '#collapsible' => TRUE, '#collapsed' => TRUE);
+  $form['advanced'] = array('#type' => 'fieldset', '#weight' => 999, '#title' => t('Advanced'), '#description' => t('Only for experts.'), '#collapsible' => TRUE, '#collapsed' => TRUE);
   $form['advanced']['topspin_api_url'] = array(
     '#type' => 'textfield',
-    '#title' => 'API URL',
-    '#description' => 'The URL to the API (no trailing slash).',
+    '#title' => t('API URL'),
+    '#description' => t('The URL to the API (no trailing slash).'),
     '#required' => TRUE,
     '#default_value' => variable_get('topspin_api_url', 'https://app.topspin.net/api/v1'),
   );
   $form['advanced']['topspin_store_search_parameters'] = array(
     '#type' => 'textfield',
-    '#title' => 'Store Search Parameters',
+    '#title' => t('Store Search Parameters'),
     '#description' => t('Provide a custom string of parameters to pass through the offer API. Separate parameters with & (i.e. product_type=merchandise&artist_id=2).
                         More information on possible parameters is available in our !link. <strong>Note: </strong> 
                         Using this option will <strong>void</strong> all configured parameters above in the store settings.',
@@ -155,8 +181,8 @@ function topspin_settings_form() {
   );
   $form['advanced']['topspin_debug'] = array(
     '#type' => 'checkbox',
-    '#title' => 'Debug Mode',
-    '#description' => 'When enabled, debug information is displayed on the screen when requests are made to the Topspin API.',
+    '#title' => t('Debug Mode'),
+    '#description' => t('When enabled, debug information is displayed on the screen when requests are made to the Topspin API.'),
     '#default_value' => variable_get('topspin_debug', FALSE),
     '#return_value' => TRUE,
   );
