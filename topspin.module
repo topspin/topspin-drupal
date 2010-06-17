@@ -122,6 +122,13 @@ function topspin_block($op = 'list', $delta = 0, $edit = array()) {
       // Default store block.
       $blocks['store']['info'] = t('TopSpin - Store');
       
+      // Social media links block.
+      $blocks['social_media']['info'] = t('Social Media links');
+      
+      // Generic logos block.
+      $blocks['generic_logos']['info'] = t('Generic logos');
+      
+      
       return $blocks;
     
     case 'configure':
@@ -182,7 +189,14 @@ function topspin_block($op = 'list', $delta = 0, $edit = array()) {
             ),
             '#default_value' => variable_get('topspin_store_block_sort_direction', variable_get('topspin_store_sort_direction', 'asc')),
           );
-          
+        case 'social_media':
+        case 'generic_logos':
+          $form['body'] = array(
+            '#type' => 'textarea',
+            '#title' => t('Block body'),
+            '#description' => t('Tokens available: !base-path, !theme-path, !current-page-url, !current-page-path, !current-nid'),
+            '#default_value' => variable_get('topspin_store_block_'. $delta .'_body', ''),
+          );
           break;
       }
       
@@ -196,7 +210,10 @@ function topspin_block($op = 'list', $delta = 0, $edit = array()) {
           variable_set('topspin_store_block_filter_product_type', $edit['product_type']);
           variable_set('topspin_store_block_sort_column', $edit['sort_column']);
           variable_set('topspin_store_block_sort_direction', $edit['sort_direction']);
-          
+          break;
+        case 'social_media':
+        case 'generic_logos':
+          variable_set('topspin_store_block_'. $delta .'_body', $edit['body']);
           break;
       }
       
@@ -208,14 +225,19 @@ function topspin_block($op = 'list', $delta = 0, $edit = array()) {
           if (user_access('access topspin store')) {
             $block['content'] = topspin_store_view();
           }
-          
           break;
-        
+        case 'social_media':
+        case 'generic_logos':
+          $block['content'] = t(variable_get('topspin_store_block_'. $delta .'_body', ''),
+            array('!base-path' => base_path(), '!theme-path' => base_path() . path_to_theme(),
+            '!current-page-url' => url($_GET['q'], array('absolute' => TRUE)),
+            '!current-page-path' => $_GET['q'],
+            '!current-nid' => is_numeric(arg(1)) ? arg(1) : ''));
+          break;
         default:
           if (user_access('access topspin widgets')) {
             $block['content'] = theme('topspin_offer_block', $delta);
           }
-          
           break;
       }
       
