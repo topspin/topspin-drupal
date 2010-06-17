@@ -229,7 +229,7 @@ function topspin_block($op = 'list', $delta = 0, $edit = array()) {
         case 'social_media':
         case 'generic_logos':
           $block['content'] = t(variable_get('topspin_store_block_'. $delta .'_body', ''),
-            array('!base-path' => base_path(), '!theme-path' => base_path() . path_to_theme(),
+            array('!base-path' => base_path(), '!theme-path' => base_path() . drupal_get_path('theme', $GLOBALS['theme_key']),
             '!current-page-url' => url($_GET['q'], array('absolute' => TRUE)),
             '!current-page-path' => $_GET['q'],
             '!current-nid' => is_numeric(arg(1)) ? arg(1) : ''));
