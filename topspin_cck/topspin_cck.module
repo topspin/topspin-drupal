@@ -73,15 +73,18 @@ function topspin_cck_form_alter(&$form, &$form_state, $form_id) {
   switch ($form_id) {
     case 'topspin_product_node_form':
       // Add a Revert button for TopSpin imports.
-      $topspin_revert = array(
-        '#type' => 'submit',
-        '#value' => 'Revert',
-        '#weight' => 20,
-        '#submit' => array(
-          'topspin_cck_node_revert_submit',
-        ),
-      );
-      $form['buttons']['topspin_revert'] = $topspin_revert;
+      // Make sure this is an actual import and not a manually created topspin_product.
+      if (topspin_cck_node_get_offer_id($form['nid']['#value'])) {
+        $topspin_revert = array(
+          '#type' => 'submit',
+          '#value' => 'Revert',
+          '#weight' => 20,
+          '#submit' => array(
+            'topspin_cck_node_revert_submit',
+          ),
+        );
+        $form['buttons']['topspin_revert'] = $topspin_revert;
+      }
       break;
   }
   // Include admin form_alter stuff.
@@ -98,6 +101,17 @@ function topspin_cck_form_alter(&$form, &$form_state, $form_id) {
 function topspin_cck_node_revert_submit($form, &$form_state) {
   // Revert this node only.
   topspin_cck_import_offers(TRUE, $form['nid']['#value']);
+}
+
+
+/**
+ * Helper function to retrieve a node's offer_id.
+ *
+ * @param int $nid
+ * @return int $offer_id
+ */
+function topspin_cck_node_get_offer_id($nid) {
+  return db_result(db_query("SELECT oid FROM {topspin_offer} WHERE nid = %d", $nid));
 }
 
 
@@ -138,7 +152,7 @@ function topspin_cck_import_offers($override = NULL, $update_nid = NULL) {
   
   // If we have a single node to update, get the offer id before we start looping.
   if ($update_nid) {
-    $update_offer_id = db_result(db_query("SELECT oid FROM {topspin_offer} WHERE nid = %d", array($update_nid)));
+    $update_offer_id = topspin_cck_node_get_offer_id($update_nid);
   }
   
   // Loop through orders and add/update.
@@ -238,6 +252,7 @@ function topspin_cck_offer_save_node($offer, $override = NULL) {
     }
     
     // Associate offer_id, could be useful later.
+    // TODO: doesn't seem to be saving...
     $node->topspin_offer_id = $offer->id;
     
     // Save it!
