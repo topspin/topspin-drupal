@@ -67,9 +67,44 @@ function topspin_cck_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
 
 
 /**
+ * Implementation of hook_form_alter().
+ */
+function topspin_cck_form_alter(&$form, &$form_state, $form_id) {
+  switch ($form_id) {
+    case 'topspin_product_node_form':
+      // Add a Revert button for TopSpin imports.
+      $topspin_revert = array(
+        '#type' => 'submit',
+        '#value' => 'Revert',
+        '#weight' => 20,
+        '#submit' => array(
+          'topspin_cck_node_revert_submit',
+        ),
+      );
+      $form['buttons']['topspin_revert'] = $topspin_revert;
+      break;
+  }
+  // Include admin form_alter stuff.
+  _topspin_cck_admin_form_alter($form, $form_state, $form_id);
+}
+
+
+/**
+ * TopSpin node revert handler.
+ *
+ * @param array $form
+ * @param array $form_state
+ */
+function topspin_cck_node_revert_submit($form, &$form_state) {
+  // Revert this node only.
+  topspin_cck_import_offers(TRUE, $form['nid']['#value']);
+}
+
+
+/**
  * Import Topspin offers and map to nodes.
  */
-function topspin_cck_import_offers($override = NULL) {
+function topspin_cck_import_offers($override = NULL, $update_nid = NULL) {
   
   // Get offers.
   $params = array();
@@ -101,84 +136,131 @@ function topspin_cck_import_offers($override = NULL) {
     $offers->offers = array_merge($offers->offers, $this_offer->offers);
   }
   
-  // Loop through orders and add, if we haven't already.
+  // If we have a single node to update, get the offer id before we start looping.
+  if ($update_nid) {
+    $update_offer_id = db_result(db_query("SELECT oid FROM {topspin_offer} WHERE nid = %d", array($update_nid)));
+  }
+  
+  // Loop through orders and add/update.
   foreach ($offers->offers as $offer_index => $offer) {
-    $offer_id = (int) $offer->id;
-    $existing_nid = db_result(db_query("SELECT nid FROM {topspin_offer} WHERE oid = %d", array($offer_id)));
-    if (!$existing_nid || $override) {
-      // New Offer, create a new node or update existing.
-      $updating = 0;
-      
-      if ($override && $existing_nid) {
-        $updating = 1;
-        $update_count++;
-      } else {
-        $create_count++;
-      }
-      
-      // Node basics.
-      if ($updating) {
-        $node = node_load($existing_nid);
-      } else {
-        $node = (object) array(
-          'title' => $offer->name,
-          'type' => 'topspin_product',
-          'uid' => $GLOBALS['user']->uid,
-          'status' => (int) !variable_get('topspin_cck_unpublish_on_import', 1),
-        );
-      }
-      
-      // Embed Code field.
-      $node->field_topspin_buy_embed[0]['value'] = $offer->embed_code;
-      $node->field_topspin_buy_embed[0]['format'] = 2;
-      
-      // Price field.
-      $node->field_topspin_price[0]['value'] = '$'. $offer->price;
-      
-      // Body field.
-      $node->body = $offer->campaign->product->description;
-      
-      // Image field.
-      if ($offer->poster_image) {
-        $file = NULL;
-        if ($updating) {
-          // Check if a file obj already exists - if so, just update existing.
-          if (isset($node->field_topspin_image[0]['fid'])) {
-            $file = $node->field_topspin_image[0];
-          }
+    if ($update_nid) {
+      // We have an individual node to update, only save the one.
+      if ($update_offer_id && $update_offer_id == (int) $offer->id) {
+        $action = topspin_cck_offer_save_node($offer, $override);
+        if ($action == 2) {
+          $update_count++;
         }
-        $file = topspin_cck_process_image($offer->poster_image, $file);
-        $node->field_topspin_image[0] = (array) $file;
+        break;
       }
-      
-      // Associate offer_id.
-      $node->topspin_offer_id = $offer->id;
-      
-      // Save it!
-      node_save($node);
-      
-      // Add Order to {orders_topspin}.
-      if ($updating) {
-        db_query("UPDATE {topspin_offer} SET data = '%s', changed = %d WHERE nid = %d", array(serialize($offer), time(), $node->nid));
-      } else {
-        db_query("INSERT INTO {topspin_offer} (oid, nid, data, changed, created) VALUES(%d, %d, '%s', %d, %d)", array($offer_id, $node->nid, serialize($offer), time(), time()));
+    } else {
+      // Save 'em all.
+      $action = topspin_cck_offer_save_node($offer, $override);
+      switch($action) {
+        case 1:
+          $create_count++;
+          break;
+        case 2:
+          $update_count++;
+          break;
       }
-      
     }
   }
   
   $import_message = '';
   if ($create_count) {
-    $import_message .= $create_count .' TopSpin product nodes created.';
+    $import_message .= $create_count .' TopSpin product node(s) created.';
   }
   if ($update_count) {
-    $import_message .= $update_count .' TopSpin product nodes updated.';
+    $import_message .= $update_count .' TopSpin product node(s) updated.';
   }
   if (empty($import_message)) {
-    $import_message = 'No TopSpin content to import.';
+    $import_message = 'No TopSpin content created or updated.';
   }
   drupal_set_message($import_message);
   
+}
+
+
+/**
+ * Helper function for saving an offer as a node.
+ *
+ * @param object $offer
+ * @param boolean $override
+ */
+function topspin_cck_offer_save_node($offer, $override = NULL) {
+  $offer_id = (int) $offer->id;
+  $existing_nid = db_result(db_query("SELECT nid FROM {topspin_offer} WHERE oid = %d", array($offer_id)));
+  if (!$existing_nid || $override) {
+    // New Offer, create a new node or update existing.
+    $updating = 0;
+    $creating = 1;
+    
+    if ($override && $existing_nid) {
+      $updating = 1;
+      $creating = 0;
+    }
+    
+    // Node basics.
+    if ($updating) {
+      $node = node_load($existing_nid);
+    } else {
+      $node = (object) array(
+        'type' => 'topspin_product',
+        'uid' => $GLOBALS['user']->uid,
+        'status' => (int) !variable_get('topspin_cck_unpublish_on_import', 1),
+      );
+    }
+    
+    // Title field.
+    $node->title = $offer->campaign->product->name;
+    
+    // Body field.
+    $node->body = $offer->campaign->product->description;
+    
+    // Embed Code field.
+    $node->field_topspin_buy_embed[0]['value'] = $offer->embed_code;
+    $node->field_topspin_buy_embed[0]['format'] = 2;
+    
+    // Price field.
+    $node->field_topspin_price[0]['value'] = '$'. $offer->price;
+    
+    // Image field.
+    if ($offer->poster_image) {
+      $file = NULL;
+      if ($updating) {
+        // Check if a file obj already exists - if so, just update existing.
+        if (isset($node->field_topspin_image[0]['fid'])) {
+          $file = $node->field_topspin_image[0];
+        }
+      }
+      $file = topspin_cck_process_image($offer->poster_image, $file);
+      $node->field_topspin_image[0] = (array) $file;
+    }
+    
+    // Associate offer_id, could be useful later.
+    $node->topspin_offer_id = $offer->id;
+    
+    // Save it!
+    node_save($node);
+    
+    // Add Order to {orders_topspin}.
+    if ($updating) {
+      db_query("UPDATE {topspin_offer} SET data = '%s', changed = %d WHERE nid = %d", array(serialize($offer), time(), $node->nid));
+    } else {
+      db_query("INSERT INTO {topspin_offer} (oid, nid, data, changed, created) VALUES(%d, %d, '%s', %d, %d)", array($offer_id, $node->nid, serialize($offer), time(), time()));
+    }
+    
+  }
+  
+  if ($creating) {
+    $ret = 1;
+  } else if ($updating) {
+    $ret = 2;
+  } else {
+    $ret = 0;
+  }
+  
+  return $ret;
 }
 
 

@@ -65,9 +65,9 @@ function topspin_cck_existing_imports_list() {
 
 
 /**
- * Implementation of hook_form_alter()
+ * Admin additions to hook_form_alter().
  */
-function topspin_cck_form_alter(&$form, &$form_state, $form_id) {
+function _topspin_cck_admin_form_alter(&$form, &$form_state, $form_id) {
   // Add Import related stuff to TopSpin configs.
   if ($form_id == 'topspin_settings_form') {
     $form['imports'] = array('#type' => 'fieldset', '#weight' => 1, '#title' => t('Product Importing'), '#description' => '', '#collapsible' => TRUE, '#collapsed' => FALSE);

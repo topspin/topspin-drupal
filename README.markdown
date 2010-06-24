@@ -36,6 +36,6 @@ FEATURES
 AUTHOR/MAINTAINER
 ===
 
-* 80Elements Entertainment (http://80elements.com)
+* 80 Elements Entertainment (http://80elements.com)
 * Topspin Media (http://topspinmedia.com)
 
